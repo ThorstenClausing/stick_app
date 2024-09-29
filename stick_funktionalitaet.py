@@ -72,5 +72,5 @@ def muster_generieren(eingabe_datei, ausgabe_datei):
     out[-1] = [0, 0, 0]
     out[:, -1] = [0, 0, 0]
 
-    newImage = PIL.Image.fromarray(out)
-    newImage.save(ausgabe_datei, format='jpeg')
+    new_image = PIL.Image.fromarray(out)
+    new_image.save(ausgabe_datei, format='jpeg')
