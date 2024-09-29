@@ -14,6 +14,20 @@ import numpy as np
 import sklearn.cluster as cl
 
 def muster_generieren(eingabe_datei,ausgabe_datei):
+    """
+    Generates an embroidery pattern from an image.
+
+    This function takes an image file as input and converts it into an 
+    embroidery pattern by using K-Means clustering to identify dominant colors
+    and then representing them in a grid pattern of stitches.
+
+    Args:
+        eingabe_datei (str): The path to the input image file.
+        ausgabe_datei (str): The path to save the generated embroidery pattern.
+
+    Returns:
+        None
+    """
     image = PIL.Image.open(eingabe_datei)
     rawdata = np.asarray(image)
     a,b,c = rawdata.shape
