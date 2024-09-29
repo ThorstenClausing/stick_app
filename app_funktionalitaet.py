@@ -19,8 +19,22 @@ from PIL import ImageTk, Image
 import stick_funktionalitaet as sf
 
 class stick_app(tk.Frame):
+    """
+    A GUI application for generating embroidery patterns from images.
+
+    This class creates a simple Tkinter window with two buttons:
+    - "Bild auswählen" (Select Image): Opens a file dialog to choose an image file.
+    - "Stickmuster erzeugen" (Generate Embroidery Pattern): Processes the selected
+      image and generates an embroidery pattern, saving it to a file chosen by the user.
+    """
     
     def __init__(self,master):
+        """
+        Initializes the stick_app GUI.
+
+        Args:
+            master: The parent Tkinter widget.
+        """
         super().__init__(master)
         self.eingabe_datei = None
         self.pack()
@@ -33,6 +47,9 @@ class stick_app(tk.Frame):
         
         
     def laden(self):
+        """
+        Opens a file dialog to select an image and displays it in the GUI.
+        """
         self.eingabe_datei = fd.askopenfilename()
         zwischen_bild = Image.open(self.eingabe_datei)
         zwischen_bild = zwischen_bild.resize((zwischen_bild.width*700//zwischen_bild.height,700))
@@ -41,6 +58,9 @@ class stick_app(tk.Frame):
         self.bild.image = eingabe_bild
         
     def starten(self):
+        """
+        Generates an embroidery pattern from the selected image and displays it.
+        """
         if self.eingabe_datei == None:
             mb.showerror(message="Keine Datei ausgewählt")
         else:
