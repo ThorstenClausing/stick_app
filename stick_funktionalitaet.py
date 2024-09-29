@@ -62,7 +62,7 @@ def muster_generieren(eingabe_datei, ausgabe_datei):
             quadrat = out[i * step:(i + 1) * step, j * step:(j + 1) * step]
             quadrat[:, :] = [255, 255, 255]  # Set background to white
             for k in range(2, step - 2):
-                # Apply stitch pattern: horizontal and vertical lines
+                # Apply stitch pattern
                 quadrat[k, max(k - breadth, 2):min(step - 2, k + breadth)] = col
                 quadrat[k, max(2 - step, -breadth - k):min(-2, breadth - k)] = col
             # Set border to black
