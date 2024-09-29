@@ -9,7 +9,7 @@ Created on Sat Apr 27 18:34:16 2024
 
 import tkinter as tk
 import tkinter.filedialog as fd
-import tkinter.ttk as ttk
+from tkinter import ttk
 import tkinter.messagebox as mb
 from os import path
 from PIL import ImageTk, Image
