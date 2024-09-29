@@ -8,7 +8,7 @@ Created on Sat Apr 27 18:34:16 2024
 """
 
 import tkinter as tk
-from app_funktionalitaet import StickApp  # Use the improved class name
+from app_funktionalitaet import StickApp
 
 def main():
     """
