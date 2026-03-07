@@ -113,7 +113,6 @@ def muster_generieren(eingabe_datei, ausgabe_datei, remove_background, kmeans_n_
             if torch.cuda.is_available():
                 torch.cuda.empty_cache() # Clear GPU memory cache
 
-    # --- Start of original pattern generation logic (modified for robustness and clarity) ---
     rawdata = np.asarray(image)
     a, b, c = rawdata.shape # height, width, channels
 
@@ -126,7 +125,7 @@ def muster_generieren(eingabe_datei, ausgabe_datei, remove_background, kmeans_n_
         
     data = rawdata.reshape(a * b, c) # Reshape for K-Means
 
-    # Use MiniBatchKMeans for faster processing, added random_state for reproducibility
+    # Use MiniBatchKMeans
     kmeans = cl.MiniBatchKMeans(n_clusters=kmeans_n_clusters, batch_size=10000, n_init='auto', random_state=42).fit(data)
     mapping = kmeans.predict(data) # Assign each pixel to a cluster
     cc = kmeans.cluster_centers_ # Get the representative color for each cluster
