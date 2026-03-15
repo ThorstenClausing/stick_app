@@ -13,99 +13,103 @@ from tkinter import ttk
 import tkinter.messagebox as mb
 from os import path
 from PIL import ImageTk, Image
-
 import stick_funktionalitaet as sf
 
 class StickApp(tk.Frame):
     """
-    A GUI application for generating embroidery patterns from images.
-
-    This class creates a simple Tkinter window with two buttons:
-    - "Bild auswählen" (Select Image): Opens a file dialog to choose an image file.
-    - "Stickmuster erzeugen" (Generate Embroidery Pattern): Processes the selected
-      image and generates an embroidery pattern, saving it to a file chosen by the user.
+    GUI application for generating and saving embroidery patterns.
     """
-    CONFIG = {'input_file':None,
-              'kmeans_n_clusters':20,
-              'crosses_x':150}
-    
-    def __init__(self, master, config=CONFIG):
+    def __init__(self, master):
         """
-        Initializes the StickApp GUI.
+        Initializes the StickApp.
 
         Args:
-            master: The parent Tkinter widget.
-            config: A dictionary with configuration data
+            master: Parent Tkinter widget.
         """
         super().__init__(master)
-        self.config=config
-        self.pack()
-
-        # Buttons
+        self.pack(pady=20)
+        
+        self.input_path = None
+        self.current_pattern = None  # Stores the generated pattern dict
+        
+        # UI Elements
         self.load_button = ttk.Button(self, text="Bild auswählen", command=self.load_image)
-        self.load_button.pack()
-        self.start_button = ttk.Button(self, text="Stickmuster erzeugen", command=self.generate_pattern)
-        self.start_button.pack()
-        self.start_ohne_button = ttk.Button(self, text="Stickmuster ohne Hintergrund erzeugen", command=self.generate_pattern_without_bg)
-        self.start_ohne_button.pack()
+        self.load_button.grid(row=0, column=0, padx=5, pady=5)
 
-        # Image display label
+        self.gen_button = ttk.Button(self, text="Muster generieren", command=lambda: self.process(False))
+        self.gen_button.grid(row=0, column=1, padx=5, pady=5)
+
+        self.gen_no_bg_button = ttk.Button(self, text="Muster (ohne Hintergrund)", command=lambda: self.process(True))
+        self.gen_no_bg_button.grid(row=0, column=2, padx=5, pady=5)
+
+        self.save_button = ttk.Button(self, text="Muster speichern", command=self.save_pattern, state="disabled")
+        self.save_button.grid(row=0, column=3, padx=5, pady=5)
+
         self.image_label = ttk.Label(self)
-        self.image_label.pack()
+        self.image_label.grid(row=1, column=0, columnspan=4, pady=20)
 
     def load_image(self):
-        """
-        Opens a file dialog to select an image and displays it in the GUI.
-        """
-        self.config['input_file'] = fd.askopenfilename()
-        if self.config['input_file']:
-            image = Image.open(self.config['input_file'])
-            image = image.resize((image.width * 700 // image.height, 700))
-            photo = ImageTk.PhotoImage(image)
-            self.image_label.configure(image=photo)
-            self.image_label.image = photo
+        """Opens a file dialog to select a source image."""
+        self.input_path = fd.askopenfilename(filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp")])
+        if self.input_path:
+            self.display_image(Image.open(self.input_path))
+            self.current_pattern = None
+            self.save_button.config(state="disabled")
 
-    def generate_pattern(self):
+    def process(self, remove_bg):
         """
-        Generates an embroidery pattern from the selected image and displays it.
+        Generates the embroidery pattern and updates the UI preview.
+
+        Args:
+            remove_bg (bool): Whether to perform background removal.
         """
-        if self.config['input_file'] is None:
-            mb.showerror(message="Keine Datei ausgewählt")
-        else:
-            output_filename = path.split(path.splitext(self.config['input_file'])[0])
-            output_filename = 'Stickmuster_' + output_filename[1] + '.jpg'
-            output_file = fd.asksaveasfile(initialfile=output_filename, defaultextension='jpg')
-            if output_file:
-                sf.muster_generieren(self.config['input_file'], 
-                                     output_file,
-                                     remove_background=False,
-                                     kmeans_n_clusters=self.config['kmeans_n_clusters'],
-                                     crosses_x=self.config['crosses_x'])
-                image = Image.open(output_file.name)
-                image = image.resize((image.width * 700 // image.height, 700))
-                photo = ImageTk.PhotoImage(image)
-                self.image_label.configure(image=photo)
-                self.image_label.image = photo
-                
-    def generate_pattern_without_bg(self):
+        if not self.input_path:
+            mb.showerror("Fehler", "Bitte zuerst ein Bild auswählen.")
+            return
+
+        img = Image.open(self.input_path)
+        if remove_bg:
+            img = sf.remove_background(img)
+        
+        # Generate the pattern data
+        self.current_pattern = sf.generate_embroidery_pattern(img)
+        
+        # Update UI
+        self.display_image(self.current_pattern['pil_image'])
+        self.save_button.config(state="normal")
+        mb.showinfo("Fertig", "Stickmuster wurde generiert. Sie können es jetzt speichern.")
+
+    def save_pattern(self):
+        """Opens a save dialog and exports the current pattern to JPEG or PDF."""
+        if not self.current_pattern:
+            return
+
+        base_name = path.basename(path.splitext(self.input_path)[0])
+        output_path = fd.asksaveasfilename(
+            initialfile=f"Stickmuster_{base_name}",
+            defaultextension=".pdf",
+            filetypes=[("PDF Document", "*.pdf"), ("JPEG Image", "*.jpg")]
+        )
+
+        if output_path:
+            if output_path.lower().endswith('.pdf'):
+                sf.save_as_pdf(output_path, self.current_pattern, f"Stickmuster: {base_name}")
+            else:
+                sf.save_as_jpeg(output_path, self.current_pattern)
+            mb.showinfo("Erfolg", f"Datei gespeichert unter:\n{output_path}")
+
+    def display_image(self, pil_img):
         """
-        Generates an embroidery pattern from the selected image, trying to remove 
-        the backgroud, and displays it.
+        Resizes and displays a PIL image in the GUI label.
+
+        Args:
+            pil_img (PIL.Image): Image to display.
         """
-        if self.config['input_file'] is None:
-            mb.showerror(message="Keine Datei ausgewählt")
-        else:
-            output_filename = path.split(path.splitext(self.config['input_file'])[0])
-            output_filename = 'Stickmuster_' + output_filename[1] + '.jpg'
-            output_file = fd.asksaveasfile(initialfile=output_filename, defaultextension='jpg')
-            if output_file:
-                sf.muster_generieren(self.config['input_file'], 
-                                     output_file,
-                                     remove_background=True, 
-                                     kmeans_n_clusters=self.config['kmeans_n_clusters'],
-                                     crosses_x=self.config['crosses_x'])
-                image = Image.open(output_file.name)
-                image = image.resize((image.width * 700 // image.height, 700))
-                photo = ImageTk.PhotoImage(image)
-                self.image_label.configure(image=photo)
-                self.image_label.image = photo
+        # Resize for preview while maintaining aspect ratio
+        display_h = 600
+        display_w = int(pil_img.width * (display_h / pil_img.height))
+        img_resized = pil_img.resize((display_w, display_h), Image.Resampling.LANCZOS)
+        
+        photo = ImageTk.PhotoImage(img_resized)
+        self.image_label.configure(image=photo)
+        self.image_label.image = photo
