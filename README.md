@@ -1,8 +1,10 @@
 # stick_app
-Applikation zur automatischen Erstellung von Stickvorlagen aus Bilddateien
+Application for automatically generating embroidery patterns from image files
 
-Akzeptierte Eingabeformate: jpeg
+Accepted input formats: jpeg
 
-Programmiersprache: Python
+Output formats: jpeg, pdf
 
-Benötigte Programmbibliotheken: tk, PIL, numpy, scikit-learn
+Programming language: Python
+
+Required libraries: tk, PIL, numpy, scikit-learn, torch, torchvision, protlab
