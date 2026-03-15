@@ -7,4 +7,4 @@ Output formats: jpeg, pdf
 
 Programming language: Python
 
-Required libraries: tk, PIL, numpy, scikit-learn, torch, torchvision, protlab
+Required libraries: tkinter, PIL, numpy, scikit-learn, torch, torchvision, reportlab
