@@ -2,9 +2,7 @@
 """
 This file contains the description (class) of the graphical user interface of the Stick-App.
 
-Created on Sat Apr 27 18:34:16 2024
-
-@author: Thorsten
+@author: thors
 """
 
 import tkinter as tk
@@ -19,68 +17,101 @@ class StickApp(tk.Frame):
     """
     GUI application for generating and saving embroidery patterns.
     """
+
     def __init__(self, master):
         """
-        Initializes the StickApp.
-
-        Args:
-            master: Parent Tkinter widget.
+        Initializes the StickApp with a Menubar.
         """
         super().__init__(master)
-        self.pack(pady=20)
+        self.master = master
+        self.pack(fill="both", expand=True)
         
         self.input_path = None
-        self.current_pattern = None  # Stores the generated pattern dict
+        self.current_pattern = None
         
-        # UI Elements
-        self.load_button = ttk.Button(self, text="Bild auswählen", command=self.load_image)
-        self.load_button.grid(row=0, column=0, padx=5, pady=5)
-
-        self.gen_button = ttk.Button(self, text="Muster generieren", command=lambda: self.process(False))
-        self.gen_button.grid(row=0, column=1, padx=5, pady=5)
-
-        self.gen_no_bg_button = ttk.Button(self, text="Muster (ohne Hintergrund)", command=lambda: self.process(True))
-        self.gen_no_bg_button.grid(row=0, column=2, padx=5, pady=5)
-
-        self.save_button = ttk.Button(self, text="Muster speichern", command=self.save_pattern, state="disabled")
-        self.save_button.grid(row=0, column=3, padx=5, pady=5)
+        self.create_menubar()
 
         self.image_label = ttk.Label(self)
-        self.image_label.grid(row=1, column=0, columnspan=4, pady=20)
+        self.image_label.pack(pady=20, padx=20, expand=True)
+
+    def create_menubar(self):
+        """
+        Creates the top menu bar and its submenus.
+        """
+        self.menubar = tk.Menu(self.master)
+        self.master.config(menu=self.menubar)
+
+        # --- "Datei" Menu ---
+        self.datei_menu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Datei", menu=self.datei_menu)
+        
+        self.datei_menu.add_command(label="Bild auswählen", command=self.load_image)
+        # We save a reference to the 'Save' command to enable/disable it later
+        self.datei_menu.add_command(label="Muster speichern", 
+                                    command=self.save_pattern, 
+                                    state="disabled")
+        self.datei_menu.add_separator()
+        self.datei_menu.add_command(label="Beenden", command=self.master.quit)
+
+        # --- "Stickmuster" Menu ---
+        self.stick_menu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Stickmuster", menu=self.stick_menu)
+        
+        self.stick_menu.add_command(label="Muster generieren", 
+                                    command=lambda: self.process(False), 
+                                    state="disabled")
+        self.stick_menu.add_command(label="Muster (ohne Hintergrund)", 
+                                    command=lambda: self.process(True), 
+                                    state="disabled")
 
     def load_image(self):
-        """Opens a file dialog to select a source image."""
+        """
+        Opens a file dialog to select a source image.
+        """
         self.input_path = fd.askopenfilename(filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp")])
         if self.input_path:
             self.display_image(Image.open(self.input_path))
             self.current_pattern = None
-            self.save_button.config(state="disabled")
+            
+            # Enable pattern generation now that an image is loaded
+            self.stick_menu.entryconfig("Muster generieren", state="normal")
+            self.stick_menu.entryconfig("Muster (ohne Hintergrund)", state="normal")
+            # Disable save until a new pattern is actually processed
+            self.datei_menu.entryconfig("Muster speichern", state="disabled")
 
     def process(self, remove_bg):
         """
         Generates the embroidery pattern and updates the UI preview.
-
-        Args:
-            remove_bg (bool): Whether to perform background removal.
         """
         if not self.input_path:
             mb.showerror("Fehler", "Bitte zuerst ein Bild auswählen.")
             return
 
         img = Image.open(self.input_path)
-        if remove_bg:
-            img = sf.remove_background(img)
         
-        # Generate the pattern data
-        self.current_pattern = sf.generate_embroidery_pattern(img)
+        # Change cursor to 'watch' (hourglass) during processing
+        self.master.config(cursor="watch")
+        self.master.update()
         
-        # Update UI
-        self.display_image(self.current_pattern['pil_image'])
-        self.save_button.config(state="normal")
-        mb.showinfo("Fertig", "Stickmuster wurde generiert. Sie können es jetzt speichern.")
+        try:
+            if remove_bg:
+                img = sf.remove_background(img)
+            
+            self.current_pattern = sf.generate_embroidery_pattern(img)
+            self.display_image(self.current_pattern['pil_image'])
+            
+            # Enable saving
+            self.datei_menu.entryconfig("Muster speichern", state="normal")
+            mb.showinfo("Fertig", "Stickmuster wurde generiert.")
+        except Exception as e:
+            mb.showerror("Fehler", f"Fehler bei der Verarbeitung: {e}")
+        finally:
+            self.master.config(cursor="")
 
     def save_pattern(self):
-        """Opens a save dialog and exports the current pattern to JPEG or PDF."""
+        """
+        Opens a save dialog and exports the current pattern.
+        """
         if not self.current_pattern:
             return
 
@@ -101,13 +132,16 @@ class StickApp(tk.Frame):
     def display_image(self, pil_img):
         """
         Resizes and displays a PIL image in the GUI label.
-
-        Args:
-            pil_img (PIL.Image): Image to display.
         """
         # Resize for preview while maintaining aspect ratio
         display_h = 600
         display_w = int(pil_img.width * (display_h / pil_img.height))
+        
+        # Limit width if it exceeds window bounds
+        if display_w > 1000:
+            display_w = 1000
+            display_h = int(pil_img.height * (display_w / pil_img.width))
+
         img_resized = pil_img.resize((display_w, display_h), Image.Resampling.LANCZOS)
         
         photo = ImageTk.PhotoImage(img_resized)
