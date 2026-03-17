@@ -18,7 +18,7 @@ def main():
     GUI, sets the window size and position, and starts the main event loop.
     """
     root = tk.Tk()
-    root.title("Profi Stick-App")
+    root.title("Stick-App")
     
     # Position window in center
     window_width, window_height = 1100, 800
