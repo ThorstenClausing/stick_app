@@ -19,9 +19,11 @@ from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 
-def remove_background(image, score_threshold=0.75):
-    """Identifies the main object and removes background with a custom threshold."""
-    print(f"Attempting background removal (Threshold: {score_threshold})...")
+def remove_background(image, score_threshold=0.75, num_objects=1):
+    """
+    Identifies the n largest objects and removes background.
+    """
+    print(f"Attempting background removal (Threshold: {score_threshold}, Objects: {num_objects})...")
     try:
         weights = MaskRCNN_ResNet50_FPN_Weights.DEFAULT
         model = maskrcnn_resnet50_fpn(weights=weights)
@@ -39,19 +41,25 @@ def remove_background(image, score_threshold=0.75):
             high_conf_indices = torch.where(scores > score_threshold)[0]
 
             if len(high_conf_indices) > 0:
-                max_area = 0
-                main_object_mask = None
+                # Collect all valid masks and their areas
+                mask_list = []
                 for idx in high_conf_indices:
                     current_mask = (masks[idx, 0] > 0.5).cpu().numpy()
                     current_area = np.sum(current_mask)
-                    if current_area > max_area:
-                        max_area = current_area
-                        main_object_mask = current_mask
+                    mask_list.append((current_area, current_mask))
+                
+                # Sort by area descending and take the top 'num_objects'
+                mask_list.sort(key=lambda x: x[0], reverse=True)
+                selected_masks = [m[1] for m in mask_list[:num_objects]]
 
-                if main_object_mask is not None:
+                if selected_masks:
+                    # Combine all selected masks into one (logical OR)
+                    combined_mask = np.logical_or.reduce(selected_masks)
+                    
                     img_np = np.array(image)
                     background = np.full(img_np.shape, 255, dtype=np.uint8)
-                    masked_img_np = np.where(main_object_mask[:, :, None], img_np, background)
+                    # Apply combined mask
+                    masked_img_np = np.where(combined_mask[:, :, None], img_np, background)
                     return PIL.Image.fromarray(masked_img_np)
         
         return image
