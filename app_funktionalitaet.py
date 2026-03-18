@@ -27,6 +27,7 @@ class StickApp(tk.Frame):
             "crosses_x": tk.IntVar(value=150),
             "kmeans_n_clusters": tk.IntVar(value=20),
             "score_threshold": tk.DoubleVar(value=0.75),
+            "num_objects": tk.IntVar(value=1),
             "paper_size": tk.StringVar(value="A4")
         }
         
@@ -76,6 +77,9 @@ class StickApp(tk.Frame):
         ttk.Label(container, text="KI-Schwellenwert (0.1 - 1.0):").pack(anchor="w")
         ttk.Entry(container, textvariable=self.settings["score_threshold"]).pack(fill="x", pady=(0, 10))
 
+        ttk.Label(container, text="Anzahl Vordegrundobjekte:").pack(anchor="w")
+        ttk.Entry(container, textvariable=self.settings["num_objects"]).pack(fill="x", pady=(0, 10))
+
         ttk.Label(container, text="PDF Papierformat:").pack(anchor="w")
         ttk.Combobox(container, textvariable=self.settings["paper_size"], 
                      values=["A4", "A3"], state="readonly").pack(fill="x", pady=(0, 20))
@@ -99,7 +103,10 @@ class StickApp(tk.Frame):
         
         try:
             if remove_bg:
-                img = sf.remove_background(img, score_threshold=self.settings["score_threshold"].get())
+                img = sf.remove_background(
+                    img, 
+                    score_threshold=self.settings["score_threshold"].get(),
+                    num_objects=self.settings["num_objects"].get())
             
             self.current_pattern = sf.generate_embroidery_pattern(
                 img, 
