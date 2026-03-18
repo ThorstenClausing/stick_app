@@ -2,33 +2,40 @@
 """
 This file contains the algorithms for generating an embroidery pattern from an input image.
 
-@author: thors
+@author: Thorsten
 """
 
 import io
-import os
 import PIL.Image
 import numpy as np
 import sklearn.cluster as cl
 import torch
 import torchvision.transforms as T
-from torchvision.models.detection import MaskRCNN_ResNet50_FPN_Weights, maskrcnn_resnet50_fpn
+from torchvision.models.detection import (
+    MaskRCNN_ResNet50_FPN_Weights, maskrcnn_resnet50_fpn,
+    MaskRCNN_ResNet50_FPN_V2_Weights, maskrcnn_resnet50_fpn_v2)
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, A3
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 
-def remove_background(image, score_threshold=0.75, num_objects=1):
+def remove_background(image, score_threshold=0.75, num_objects=1, model_version="Version 1"):
     """
     Identifies the n largest objects and removes background.
+    Returns: (PIL.Image, bool) -> The processed image and a success flag.
     """
-    print(f"Attempting background removal (Threshold: {score_threshold}, Objects: {num_objects})...")
+    print(f"Attempting background removal ({model_version}, Threshold: {score_threshold}, Objects: {num_objects})...")
     try:
-        weights = MaskRCNN_ResNet50_FPN_Weights.DEFAULT
-        model = maskrcnn_resnet50_fpn(weights=weights)
+        # ... [Keep model selection and prediction code as is] ...
+        if model_version == "Version 2":
+            weights = MaskRCNN_ResNet50_FPN_V2_Weights.DEFAULT
+            model = maskrcnn_resnet50_fpn_v2(weights=weights)
+        else:
+            weights = MaskRCNN_ResNet50_FPN_Weights.DEFAULT
+            model = maskrcnn_resnet50_fpn(weights=weights)
+            
         model.eval()
-
         preprocess = T.Compose([T.ToTensor()])
         img_tensor = preprocess(image)
 
@@ -41,31 +48,29 @@ def remove_background(image, score_threshold=0.75, num_objects=1):
             high_conf_indices = torch.where(scores > score_threshold)[0]
 
             if len(high_conf_indices) > 0:
-                # Collect all valid masks and their areas
                 mask_list = []
                 for idx in high_conf_indices:
                     current_mask = (masks[idx, 0] > 0.5).cpu().numpy()
                     current_area = np.sum(current_mask)
                     mask_list.append((current_area, current_mask))
                 
-                # Sort by area descending and take the top 'num_objects'
                 mask_list.sort(key=lambda x: x[0], reverse=True)
                 selected_masks = [m[1] for m in mask_list[:num_objects]]
 
                 if selected_masks:
-                    # Combine all selected masks into one (logical OR)
                     combined_mask = np.logical_or.reduce(selected_masks)
-                    
                     img_np = np.array(image)
                     background = np.full(img_np.shape, 255, dtype=np.uint8)
-                    # Apply combined mask
                     masked_img_np = np.where(combined_mask[:, :, None], img_np, background)
-                    return PIL.Image.fromarray(masked_img_np)
+                    # RETURN SUCCESS
+                    return PIL.Image.fromarray(masked_img_np), True
         
-        return image
+        # Return failure: No objects found
+        return image, False
     except Exception as e:
         print(f"Background removal failed: {e}")
-        return image
+        # Return failure: Error occurred
+        return image, False
 
 def generate_embroidery_pattern(image, kmeans_n_clusters=20, crosses_x=150):
     rawdata = np.asarray(image.convert("RGB"))

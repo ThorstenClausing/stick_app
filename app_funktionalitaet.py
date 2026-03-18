@@ -2,7 +2,7 @@
 """
 This file contains the description (class) of the graphical user interface of the Stick-App.
 
-@author: thors
+@author: Thorsten
 """
 
 import tkinter as tk
@@ -28,6 +28,7 @@ class StickApp(tk.Frame):
             "kmeans_n_clusters": tk.IntVar(value=20),
             "score_threshold": tk.DoubleVar(value=0.75),
             "num_objects": tk.IntVar(value=1),
+            "model_version": tk.StringVar(value="Version 1"),
             "paper_size": tk.StringVar(value="A4")
         }
         
@@ -62,7 +63,7 @@ class StickApp(tk.Frame):
         """Opens a dialog window to change pattern parameters."""
         settings_win = tk.Toplevel(self)
         settings_win.title("Einstellungen")
-        settings_win.geometry("300x350")
+        settings_win.geometry("300x450")
         settings_win.grab_set() # Make modal
 
         container = ttk.Frame(settings_win, padding=20)
@@ -74,6 +75,10 @@ class StickApp(tk.Frame):
         ttk.Label(container, text="Anzahl Farben:").pack(anchor="w")
         ttk.Entry(container, textvariable=self.settings["kmeans_n_clusters"]).pack(fill="x", pady=(0, 10))
 
+        ttk.Label(container, text="KI-Modell Version (Hintergrund):").pack(anchor="w")
+        ttk.Combobox(container, textvariable=self.settings["model_version"], 
+                     values=["Version 1", "Version 2"], state="readonly").pack(fill="x", pady=(0, 10))
+        
         ttk.Label(container, text="KI-Schwellenwert (0.1 - 1.0):").pack(anchor="w")
         ttk.Entry(container, textvariable=self.settings["score_threshold"]).pack(fill="x", pady=(0, 10))
 
@@ -84,7 +89,7 @@ class StickApp(tk.Frame):
         ttk.Combobox(container, textvariable=self.settings["paper_size"], 
                      values=["A4", "A3"], state="readonly").pack(fill="x", pady=(0, 20))
 
-        ttk.Button(container, text="Schließen", command=settings_win.destroy).pack()
+        ttk.Button(container, text="Speichern und schließen", command=settings_win.destroy).pack()
 
     def load_image(self):
         self.input_path = fd.askopenfilename(filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp")])
@@ -102,19 +107,40 @@ class StickApp(tk.Frame):
         self.master.update()
         
         try:
+            processed_img = img
+            
             if remove_bg:
-                img = sf.remove_background(
+                # Get the image and the success flag from the modified function
+                processed_img, success = sf.remove_background(
                     img, 
                     score_threshold=self.settings["score_threshold"].get(),
-                    num_objects=self.settings["num_objects"].get())
-            
+                    num_objects=self.settings["num_objects"].get(),
+                    model_version=self.settings["model_version"].get())
+                
+                # If removal failed, ask the user what to do
+                if not success:
+                    self.master.config(cursor="") # Reset cursor so user can click dialog
+                    answer = mb.askyesno(
+                        "Hintergrund nicht gefunden", 
+                        "Es konnten keine Vordergrundobjekte erkannt werden. "
+                        "Möchten Sie das Stickmuster stattdessen ohne Hintergrundentfernung erstellen?"
+                    )
+                    if not answer:
+                        # User clicked 'No', stop processing
+                        return 
+                    # If 'Yes', processed_img remains the original 'img'
+                    self.master.config(cursor="watch")
+                    self.master.update()
+
+            # Generate pattern from either the masked image or the original
             self.current_pattern = sf.generate_embroidery_pattern(
-                img, 
+                processed_img, 
                 kmeans_n_clusters=self.settings["kmeans_n_clusters"].get(),
-                crosses_x=self.settings["crosses_x"].get()
-            )
+                crosses_x=self.settings["crosses_x"].get())
+            
             self.display_image(self.current_pattern['pil_image'])
             self.datei_menu.entryconfig("Muster speichern", state="normal")
+            
         except Exception as e:
             mb.showerror("Fehler", f"Verarbeitungsfehler: {e}")
         finally:
