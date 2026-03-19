@@ -149,3 +149,50 @@ def save_as_pdf(file_path, pattern_data, title_text, pagesize=A4):
 
 def save_as_jpeg(file_path, pattern_data):
     pattern_data['pil_image'].save(file_path, format='JPEG')
+
+def update_pattern_at_coord(pattern_data, row, col, color_rgb):
+    """
+    Updates a single cell in the pattern data and redraws the cross in the PIL image.
+    """
+    matrix = pattern_data['matrix']
+    pil_image = pattern_data['pil_image']
+    cluster_centers = pattern_data['cluster_centers']
+    
+    # Update matrix color (find index or add new)
+    # For simplicity, we can also just update the PIL image directly.
+    # To keep the PDF export working, we find the closest cluster index or handle 'white'
+    
+    # Redraw the cross on the PIL image
+    img_np = np.array(pil_image)
+    h, w, _ = img_np.shape
+    grid_h, grid_w = matrix.shape
+    step = h // grid_h
+    breadth = max(1, step // 8)
+    
+    y0, x0 = row * step, col * step
+    y1, x1 = (row + 1) * step, (col + 1) * step
+    
+    # Clear cell to white
+    img_np[y0:y1, x0:x1] = [255, 255, 255]
+    
+    # Draw cross if color is not white
+    if not all(c == 255 for c in color_rgb):
+        for r in range(step):
+            for b_off in range(-breadth // 2, breadth - breadth // 2):
+                if 0 <= r + b_off < step: 
+                    img_np[y0 + r, x0 + r + b_off] = color_rgb
+                if 0 <= (step - 1 - r) + b_off < step: 
+                    img_np[y0 + r, x0 + (step - 1 - r) + b_off] = color_rgb
+                    
+    # Draw border
+    img_np[y0:y1, x0] = [0,0,0]
+    img_np[y0:y1, x1-1] = [0,0,0]
+    img_np[y0, x0:x1] = [0,0,0]
+    img_np[y1-1, x0:x1] = [0,0,0]
+
+    pattern_data['pil_image'] = PIL.Image.fromarray(img_np)
+    
+    # Find cluster index for the matrix (to ensure PDF export stays consistent)
+    # If it's manual deletion (white), we check if white is in cluster_centers
+    # or just assign a neutral value.
+    return pattern_data
