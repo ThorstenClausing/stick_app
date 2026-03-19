@@ -108,7 +108,9 @@ def generate_embroidery_pattern(image, kmeans_n_clusters=20, crosses_x=150):
     return {"pil_image": PIL.Image.fromarray(out), "cluster_centers": cluster_centers, "matrix": matrix}
 
 def save_as_pdf(file_path, pattern_data, title_text, pagesize=A4):
-    """Saves PDF with dynamic pagesize (A4 or A3)."""
+    """
+    Saves PDF with dynamic pagesize (A4 or A3).
+    """
     pil_image = pattern_data['pil_image']
     cluster_centers = pattern_data['cluster_centers']
     matrix = pattern_data['matrix']
