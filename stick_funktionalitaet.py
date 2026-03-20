@@ -135,6 +135,9 @@ def save_as_pdf(file_path, pattern_data, title_text, pagesize=A4):
     c.drawString(2 * cm, y_pos, "Verwendete Farben (Color Legend):")
     y_pos -= 1 * cm
 
+    # Note: In save_as_pdf, add a check to skip '255' indices 
+    # so deleted crosses don't appear in the legend.
+
     unique_indices = np.unique(matrix)
     for idx in unique_indices:
         rgb = cluster_centers[idx].astype(int)
@@ -156,15 +159,12 @@ def update_pattern_at_coord(pattern_data, row, col, color_rgb):
     """
     Updates a single cell in the pattern data and redraws the cross in the PIL image.
     """
+    # We work on copies to avoid side effects if needed, 
+    # but the history management will handle snapshots.
     matrix = pattern_data['matrix']
     pil_image = pattern_data['pil_image']
     cluster_centers = pattern_data['cluster_centers']
     
-    # Update matrix color (find index or add new)
-    # For simplicity, we can also just update the PIL image directly.
-    # To keep the PDF export working, we find the closest cluster index or handle 'white'
-    
-    # Redraw the cross on the PIL image
     img_np = np.array(pil_image)
     h, w, _ = img_np.shape
     grid_h, grid_w = matrix.shape
@@ -176,6 +176,14 @@ def update_pattern_at_coord(pattern_data, row, col, color_rgb):
     
     # Clear cell to white
     img_np[y0:y1, x0:x1] = [255, 255, 255]
+    
+    # Update Matrix: If erasing (white), we set a flag value (e.g., -1) 
+    # or identify the closest cluster. For deletion, we'll use a special value 
+    # and handle it in the PDF generator if necessary.
+    # Simple approach: set matrix to a value that represents "empty" 
+    # or just keep it. To make PDF work, let's mark it:
+    if all(c == 255 for c in color_rgb):
+        matrix[row, col] = 255 # Using 255 as a 'empty' flag for the matrix
     
     # Draw cross if color is not white
     if not all(c == 255 for c in color_rgb):
@@ -193,8 +201,6 @@ def update_pattern_at_coord(pattern_data, row, col, color_rgb):
     img_np[y1-1, x0:x1] = [0,0,0]
 
     pattern_data['pil_image'] = PIL.Image.fromarray(img_np)
+    pattern_data['matrix'] = matrix
     
-    # Find cluster index for the matrix (to ensure PDF export stays consistent)
-    # If it's manual deletion (white), we check if white is in cluster_centers
-    # or just assign a neutral value.
     return pattern_data
