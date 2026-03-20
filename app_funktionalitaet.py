@@ -23,6 +23,7 @@ class StickApp(tk.Frame):
         self.input_path = None
         self.current_pattern = None
         self.edit_mode = tk.StringVar(value="none") # "none" or "erase"
+        self.history = [] 
         self.selected_color = [255, 255, 255] 
 
         self.settings = {
@@ -43,6 +44,8 @@ class StickApp(tk.Frame):
         # Events for editing
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.canvas.bind("<B1-Motion>", self.on_canvas_click)
+        self.master.bind("<Control-z>", self.undo_action)
+        self.master.bind("<Control-Z>", self.undo_action)
         
     def create_menubar(self):
         self.menubar = tk.Menu(self.master)
@@ -63,6 +66,7 @@ class StickApp(tk.Frame):
         self.stick_menu.add_command(label="Muster generieren", command=lambda: self.process(False), state="disabled")
         self.stick_menu.add_command(label="Muster (ohne Hintergrund)", command=lambda: self.process(True), state="disabled")
         self.stick_menu.add_command(label="Muster nachbearbeiten", command=self.enable_edit_mode, state="disabled")
+        self.stick_menu.add_command(label="Nachbearbeitung\nrückgängig machen", command=self.undo_action, state="disabled", accelerator="Ctrl+Z")
 
         # Einstellungen Menu
         self.settings_menu = tk.Menu(self.menubar, tearoff=0)
@@ -83,9 +87,26 @@ class StickApp(tk.Frame):
         self.stick_menu.entryconfig("Muster generieren", state="disabled")
         self.stick_menu.entryconfig("Muster (ohne Hintergrund)", state="disabled")
         self.stick_menu.entryconfig("Muster nachbearbeiten", state="disabled")
+        self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen" state="disabled")
         self.datei_menu.entryconfig("Muster speichern", state="disabled")
         self.datei_menu.entryconfig("Anzeige leeren", state="disabled")
 
+    def undo_action(self, event=None):
+        """
+        Restores the previous state from the history stack.
+        """
+        if self.history:
+            # Pop the last state from history and make it current
+            self.current_pattern = self.history.pop()
+            self.display_image(self.current_pattern['pil_image'])
+            
+            # Disable undo menu item if history is empty
+            if not self.history:
+                self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="disabled")
+        else:
+            # If triggered by Ctrl+Z but no history
+            pass
+            
     def enable_edit_mode(self):
         """
         Activates the deletion tool.
@@ -162,6 +183,21 @@ class StickApp(tk.Frame):
                 self.modify_pattern(row, col)
 
     def modify_pattern(self, row, col):
+        state_snapshot = {
+            "pil_image": self.current_pattern["pil_image"].copy(),
+            "matrix": self.current_pattern["matrix"].copy(),
+            "cluster_centers": self.current_pattern["cluster_centers"].copy()
+        }
+        self.history.append(state_snapshot)
+        
+        # Limit history to 50 steps to save memory
+        if len(self.history) > 50:
+            self.history.pop(0)
+
+        # Enable the Undo menu item
+        self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="normal")
+
+        # Perform the actual modification
         self.current_pattern = sf.update_pattern_at_coord(
             self.current_pattern, row, col, self.selected_color
         )
@@ -189,6 +225,7 @@ class StickApp(tk.Frame):
             self.input_path = path_selected
             self.display_image(Image.open(self.input_path))
             self.current_pattern = None
+            self.history = [] # Reset history on new image
             self.edit_mode.set("none")
             self.master.config(cursor="")
             
@@ -196,8 +233,9 @@ class StickApp(tk.Frame):
             self.stick_menu.entryconfig("Muster generieren", state="normal")
             self.stick_menu.entryconfig("Muster (ohne Hintergrund)", state="normal")
             self.stick_menu.entryconfig("Muster nachbearbeiten", state="disabled")
+            self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="disabled")
             self.datei_menu.entryconfig("Muster speichern", state="disabled")
-
+            
     def process(self, remove_bg):
         if not self.input_path: return
         img = Image.open(self.input_path)
@@ -226,6 +264,8 @@ class StickApp(tk.Frame):
                 crosses_x=self.settings["crosses_x"].get())
             
             self.display_image(self.current_pattern['pil_image'])
+            self.history = []
+            self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="disabled")
             
             # Enable pattern-related tools
             self.stick_menu.entryconfig("Muster nachbearbeiten", state="normal")
