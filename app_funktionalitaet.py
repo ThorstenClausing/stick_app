@@ -11,6 +11,7 @@ from tkinter import ttk
 import tkinter.messagebox as mb
 from os import path
 from PIL import ImageTk, Image
+import numpy as np
 import stick_funktionalitaet as sf
 
 class StickApp(tk.Frame):
@@ -22,7 +23,7 @@ class StickApp(tk.Frame):
         
         self.input_path = None
         self.current_pattern = None
-        self.edit_mode = tk.StringVar(value="none") # "none" or "erase"
+        self.edit_mode = tk.StringVar(value="none") 
         self.history = [] 
         self.selected_color = [255, 255, 255] 
 
@@ -37,13 +38,13 @@ class StickApp(tk.Frame):
         
         self.create_menubar()
         
-        # Main Canvas area
         self.canvas = tk.Canvas(self, bg="gray70", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True, padx=20, pady=20)
         
-        # Events for editing
-        self.canvas.bind("<Button-1>", self.on_canvas_click)
-        self.canvas.bind("<B1-Motion>", self.on_canvas_click)
+        # Separate bindings for Click vs Motion to handle "swipes"
+        self.canvas.bind("<Button-1>", lambda e: self.on_canvas_interaction(e, is_motion=False))
+        self.canvas.bind("<B1-Motion>", lambda e: self.on_canvas_interaction(e, is_motion=True))
+        
         self.master.bind("<Control-z>", self.undo_action)
         self.master.bind("<Control-Z>", self.undo_action)
         
@@ -55,8 +56,8 @@ class StickApp(tk.Frame):
         self.datei_menu = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label="Datei", menu=self.datei_menu)
         self.datei_menu.add_command(label="Bild auswählen", command=self.load_image)
-        self.datei_menu.add_command(label="Anzeige leeren", command=self.clear_display, state="disabled")        
         self.datei_menu.add_command(label="Muster speichern", command=self.save_pattern, state="disabled")
+        self.datei_menu.add_command(label="Anzeige leeren", command=self.clear_display, state="disabled")                
         self.datei_menu.add_separator()
         self.datei_menu.add_command(label="Beenden", command=self.master.destroy)
 
@@ -66,7 +67,7 @@ class StickApp(tk.Frame):
         self.stick_menu.add_command(label="Muster generieren", command=lambda: self.process(False), state="disabled")
         self.stick_menu.add_command(label="Muster (ohne Hintergrund)", command=lambda: self.process(True), state="disabled")
         self.stick_menu.add_command(label="Muster nachbearbeiten", command=self.enable_edit_mode, state="disabled")
-        self.stick_menu.add_command(label="Nachbearbeitung\nrückgängig machen", command=self.undo_action, state="disabled", accelerator="Ctrl+Z")
+        self.stick_menu.add_command(label="Nachbearbeitung rückgängig machen", command=self.undo_action, state="disabled", accelerator="Ctrl+Z")
 
         # Einstellungen Menu
         self.settings_menu = tk.Menu(self.menubar, tearoff=0)
@@ -87,7 +88,7 @@ class StickApp(tk.Frame):
         self.stick_menu.entryconfig("Muster generieren", state="disabled")
         self.stick_menu.entryconfig("Muster (ohne Hintergrund)", state="disabled")
         self.stick_menu.entryconfig("Muster nachbearbeiten", state="disabled")
-        self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen" state="disabled")
+        self.stick_menu.entryconfig("Nachbearbeitung rückgängig machen", state="disabled")
         self.datei_menu.entryconfig("Muster speichern", state="disabled")
         self.datei_menu.entryconfig("Anzeige leeren", state="disabled")
 
@@ -102,7 +103,7 @@ class StickApp(tk.Frame):
             
             # Disable undo menu item if history is empty
             if not self.history:
-                self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="disabled")
+                self.stick_menu.entryconfig("Nachbearbeitung rückgängig machen", state="disabled")
         else:
             # If triggered by Ctrl+Z but no history
             pass
@@ -147,9 +148,12 @@ class StickApp(tk.Frame):
                      values=["A4", "A3"], state="readonly").pack(fill="x", pady=(0, 20))
 
         ttk.Button(container, text="Speichern", command=settings_win.destroy).pack()
-
-    def on_canvas_click(self, event):
-        # Only allow clicks if a pattern exists AND edit mode is 'erase'
+                
+    def on_canvas_interaction(self, event, is_motion=False):
+        """
+        Unified handler for clicks and drags. 
+        Only starts a history record on the initial click (is_motion=False).
+        """
         if not self.current_pattern or self.edit_mode.get() != "erase": 
             return
         
@@ -157,6 +161,7 @@ class StickApp(tk.Frame):
         c_height = self.canvas.winfo_height()
         img_w, img_h = self.current_pattern['pil_image'].size
         
+        # Calculate display scaling (Logic same as original)
         display_h = 600
         display_w = int(img_w * (display_h / img_h))
         if display_w > 1000:
@@ -180,22 +185,41 @@ class StickApp(tk.Frame):
             row = int(orig_y // (img_h / grid_h))
             
             if 0 <= row < grid_h and 0 <= col < grid_w:
-                self.modify_pattern(row, col)
+                # Pass whether this is a motion to the modify method
+                self.modify_pattern(row, col, push_history=(not is_motion))
 
-    def modify_pattern(self, row, col):
-        state_snapshot = {
-            "pil_image": self.current_pattern["pil_image"].copy(),
-            "matrix": self.current_pattern["matrix"].copy(),
-            "cluster_centers": self.current_pattern["cluster_centers"].copy()
-        }
-        self.history.append(state_snapshot)
-        
-        # Limit history to 50 steps to save memory
-        if len(self.history) > 50:
-            self.history.pop(0)
+    def modify_pattern(self, row, col, push_history=True):
+        """
+        Updates the pattern. If push_history is True, saves current state 
+        to the undo stack first, provided it's different from the last state.
+        """
+        # Optimization: Check if the cell is already the target color (255 for erase)
+        # to avoid redundant history points or calculations.
+        if self.current_pattern['matrix'][row, col] == 255:
+            return
 
-        # Enable the Undo menu item
-        self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="normal")
+        if push_history:
+            # Create a snapshot of the current state BEFORE modification
+            state_snapshot = {
+                "pil_image": self.current_pattern["pil_image"].copy(),
+                "matrix": self.current_pattern["matrix"].copy(),
+                "cluster_centers": self.current_pattern["cluster_centers"].copy()
+            }
+
+            # CHECK: Only add to history if it differs from the top of the stack
+            is_redundant = False
+            if self.history:
+                last_matrix = self.history[-1]["matrix"]
+                if np.array_equal(state_snapshot["matrix"], last_matrix):
+                    is_redundant = True
+
+            if not is_redundant:
+                self.history.append(state_snapshot)
+                if len(self.history) > 50:
+                    self.history.pop(0)
+                
+                # Update UI menu state
+                self.stick_menu.entryconfig("Nachbearbeitung rückgängig machen", state="normal")
 
         # Perform the actual modification
         self.current_pattern = sf.update_pattern_at_coord(
@@ -233,7 +257,7 @@ class StickApp(tk.Frame):
             self.stick_menu.entryconfig("Muster generieren", state="normal")
             self.stick_menu.entryconfig("Muster (ohne Hintergrund)", state="normal")
             self.stick_menu.entryconfig("Muster nachbearbeiten", state="disabled")
-            self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="disabled")
+            self.stick_menu.entryconfig("Nachbearbeitung rückgängig machen", state="disabled")
             self.datei_menu.entryconfig("Muster speichern", state="disabled")
             
     def process(self, remove_bg):
@@ -265,7 +289,7 @@ class StickApp(tk.Frame):
             
             self.display_image(self.current_pattern['pil_image'])
             self.history = []
-            self.stick_menu.entryconfig("Nachbearbeitung\nrückgängig machen", state="disabled")
+            self.stick_menu.entryconfig("Nachbearbeitung rückgängig machen", state="disabled")
             
             # Enable pattern-related tools
             self.stick_menu.entryconfig("Muster nachbearbeiten", state="normal")

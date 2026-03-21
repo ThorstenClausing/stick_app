@@ -140,16 +140,17 @@ def save_as_pdf(file_path, pattern_data, title_text, pagesize=A4):
 
     unique_indices = np.unique(matrix)
     for idx in unique_indices:
-        rgb = cluster_centers[idx].astype(int)
-        c.setFillColor(colors.Color(rgb[0]/255, rgb[1]/255, rgb[2]/255))
-        c.rect(2 * cm, y_pos, 0.5 * cm, 0.5 * cm, fill=1, stroke=1)
-        c.setFillColor(colors.black)
-        hex_val = '#%02x%02x%02x' % (rgb[0], rgb[1], rgb[2])
-        c.drawString(3 * cm, y_pos + 0.1 * cm, f"ID {idx}: RGB {tuple(rgb)} | {hex_val}")
-        y_pos -= 0.7 * cm
-        if y_pos < 2 * cm:
-            c.showPage()
-            y_pos = height - 2 * cm
+        if idx != 255:
+            rgb = cluster_centers[idx].astype(int)
+            c.setFillColor(colors.Color(rgb[0]/255, rgb[1]/255, rgb[2]/255))
+            c.rect(2 * cm, y_pos, 0.5 * cm, 0.5 * cm, fill=1, stroke=1)
+            c.setFillColor(colors.black)
+            hex_val = '#%02x%02x%02x' % (rgb[0], rgb[1], rgb[2])
+            c.drawString(3 * cm, y_pos + 0.1 * cm, f"ID {idx}: RGB {tuple(rgb)} | {hex_val}")
+            y_pos -= 0.7 * cm
+            if y_pos < 2 * cm:
+                c.showPage()
+                y_pos = height - 2 * cm
     c.save()
 
 def save_as_jpeg(file_path, pattern_data):
@@ -163,7 +164,7 @@ def update_pattern_at_coord(pattern_data, row, col, color_rgb):
     # but the history management will handle snapshots.
     matrix = pattern_data['matrix']
     pil_image = pattern_data['pil_image']
-    cluster_centers = pattern_data['cluster_centers']
+    #cluster_centers = pattern_data['cluster_centers']
     
     img_np = np.array(pil_image)
     h, w, _ = img_np.shape
