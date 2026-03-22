@@ -41,5 +41,6 @@
     "msg_save_success": "File saved successfully.",
     "embroidery_pattern": "Embroidery Pattern",
     "pattern_file_prefix": "Pattern",
-    "color_legend": "Color Legend:"
+    "color_legend": "Color Legend:",
+    "eraser": "Eraser"
 }

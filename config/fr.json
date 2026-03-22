@@ -41,5 +41,6 @@
     "msg_save_success": "Fichier enregistré avec succès.",
     "embroidery_pattern": "Modèle de broderie",
     "pattern_file_prefix": "Modele_de_broderie",
-    "color_legend": "Légende des couleurs:"
+    "color_legend": "Légende des couleurs:",
+    "eraser": "Gomme"
 }

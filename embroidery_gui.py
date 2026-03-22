@@ -5,15 +5,20 @@ Handles user interaction, localization, and image display.
 """
 
 import tkinter as tk
+from tkinter import ttk
 import tkinter.filedialog as fd
 import tkinter.messagebox as mb
-from os import path
+from os import path, makedirs
 import json
 from PIL import ImageTk, Image
 import numpy as np
 import embroidery_logic as el
 
+CONFIG_FILE = "config/stick_settings.json"
+LOCALES_DIR = "config"
+
 class StickApp(tk.Frame):
+    
     def __init__(self, master):
         super().__init__(master)
         self.master = master
@@ -29,19 +34,30 @@ class StickApp(tk.Frame):
         self.zoom_level = 1.0
         self.base_size = (0, 0)
         self.texts = {}
+        self.lang_code = tk.StringVar(value="de")
         
         # Menu Reference Dictionary
         self.menu_refs = {}
 
         # Config Variables
         self.settings = {
-            "crosses_x": tk.IntVar(value=150),
-            "kmeans_n_clusters": tk.IntVar(value=20),
-            "score_threshold": tk.DoubleVar(value=0.75),
-            "num_objects": tk.IntVar(value=1),
-            "model_version": tk.StringVar(value="Version 1"),
-            "paper_size": tk.StringVar(value="A4 Portrait"),
-            "language": tk.StringVar(value="en")
+            "crosses_x": tk.IntVar(),
+            "kmeans_n_clusters": tk.IntVar(),
+            "score_threshold": tk.DoubleVar(),
+            "num_objects": tk.IntVar(),
+            "model_version": tk.StringVar(),
+            "paper_size": tk.StringVar(),
+            "language": self.lang_code
+        }
+        
+        self.defaults = {
+            "crosses_x": 150,
+            "kmeans_n_clusters": 20,
+            "score_threshold": 0.75,
+            "num_objects": 3,
+            "model_version": "Version 1",
+            "paper_size": "A4 Portrait",
+            "language": "de"
         }
 
         self.load_settings()
@@ -50,13 +66,17 @@ class StickApp(tk.Frame):
         self.bind_shortcuts()
 
     def setup_ui(self):
-        """Initializes all UI components."""
+        """
+        Initializes all UI components.
+        """
         self.create_menubar()
         self.create_canvas_area()
         self.refresh_ui_text()
 
     def load_translations(self):
-        """Loads JSON locale file based on current setting."""
+        """
+        Loads JSON locale file based on current setting.
+        """
         lang = self.settings["language"].get()
         fpath = path.join("config", f"{lang}.json")
         try:
@@ -69,7 +89,9 @@ class StickApp(tk.Frame):
             print(f"Translation error: {e}")
 
     def create_menubar(self):
-        """Creates the menu and stores references for dynamic state updates."""
+        """
+        Creates the menu and stores references for dynamic state updates.
+        """
         self.menubar = tk.Menu(self.master)
         self.master.config(menu=self.menubar)
 
@@ -117,7 +139,9 @@ class StickApp(tk.Frame):
         self.menu_refs['settings_menu'] = set_m
 
     def refresh_ui_text(self):
-        """Updates all UI labels from the translation dictionary."""
+        """
+        Updates all UI labels from the translation dictionary.
+        """
         t = self.texts
         m = self.menu_refs
         
@@ -136,12 +160,21 @@ class StickApp(tk.Frame):
         self.menubar.entryconfig(m['view_cascade'], label=t.get("view", "View"))
         m['view_menu'].entryconfig(0, label=t.get("clear", "Clear"))
         m['view_menu'].entryconfig(2, label=t.get("zoom", "Zoom"))
+        m['zoom_menu'].entryconfig(0, label=t.get("zoom_in"))
+        m['zoom_menu'].entryconfig(1, label=t.get("zoom_out"))
+        m['zoom_menu'].entryconfig(2, label=t.get("zoom_std"))
 
         self.menubar.entryconfig(m['settings_cascade'], label=t.get("settings", "Settings"))
         m['settings_menu'].entryconfig(0, label=t.get("params", "Parameters..."))
+        
+        # Update Palette window if open
+        if self.palette_window and self.palette_window.winfo_exists():
+            self.palette_window.title(t.get("color_sel"))
 
     def create_canvas_area(self):
-        """Sets up the scrollable canvas for image display."""
+        """
+        Sets up the scrollable canvas for image display.
+        """
         frame = tk.Frame(self)
         frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -159,7 +192,10 @@ class StickApp(tk.Frame):
         self.canvas.bind("<B1-Motion>", lambda e: self.handle_click(e, motion=True))
 
     def load_image(self):
-        """Handles image file selection."""
+        """
+        Handles image file selection.
+        """
+        self.stop_editing()
         fpath = fd.askopenfilename(filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp")])
         if fpath:
             self.input_path = fpath
@@ -169,12 +205,14 @@ class StickApp(tk.Frame):
             self.display_image(Image.open(fpath))
             
             # Update menu states
-            self.menu_refs['pattern_menu'].entryconfig('gen', state="normal")
-            self.menu_refs['pattern_menu'].entryconfig('gen_nobg', state="normal")
-            self.menu_refs['view_menu'].entryconfig('clear', state="normal")
+            self.menu_refs['pattern_menu'].entryconfig(0, state="normal")
+            self.menu_refs['pattern_menu'].entryconfig(1, state="normal")
+            self.menu_refs['view_menu'].entryconfig(0, state="normal")
 
     def display_image(self, pil_img):
-        """Resizes and renders the image on the canvas."""
+        """
+        Resizes and renders the image on the canvas.
+        """
         if self.zoom_level == 1.0:
             # Set base size for fitting 
             ratio = min(1000 / pil_img.width, 600 / pil_img.height)
@@ -193,8 +231,11 @@ class StickApp(tk.Frame):
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
 
     def process(self, remove_bg):
-        """Runs the background removal and pattern generation logic."""
+        """
+        Runs the background removal and pattern generation logic.
+        """
         if not self.input_path: return
+        self.stop_editing()
         self.master.config(cursor="watch")
         self.master.update()
         
@@ -207,7 +248,8 @@ class StickApp(tk.Frame):
                     self.settings['num_objects'].get(),
                     self.settings['model_version'].get()
                 )
-                if not success and not mb.askyesno("AI", self.texts.get("msg_no_obj_text", "No objects found. Continue?")):
+                if not success and not mb.askyesno(self.texts.get("msg_bg_title"), 
+                                                   self.texts.get("msg_no_obj_text", "No objects found. Continue?")):
                     return
 
             self.current_pattern = el.generate_embroidery_pattern(
@@ -216,8 +258,8 @@ class StickApp(tk.Frame):
                 self.settings['crosses_x'].get()
             )
             self.display_image(self.current_pattern['pil_image'])
-            self.menu_refs['pattern_menu'].entryconfig('edit', state="normal")
-            self.menu_refs['file_menu'].entryconfig('save', state="normal")
+            self.menu_refs['pattern_menu'].entryconfig(2, state="normal")
+            self.menu_refs['file_menu'].entryconfig(1, state="normal")
             
         except Exception as e:
             mb.showerror("Error", str(e))
@@ -225,7 +267,9 @@ class StickApp(tk.Frame):
             self.master.config(cursor="")
 
     def handle_click(self, event, motion=False):
-        """Maps canvas mouse coordinates to pattern grid coordinates."""
+        """
+        Maps canvas mouse coordinates to pattern grid coordinates.
+        """
         if not self.current_pattern or self.edit_mode.get() != "paint":
             return
             
@@ -242,7 +286,9 @@ class StickApp(tk.Frame):
             self.apply_edit(row, col, push_history=not motion)
 
     def apply_edit(self, row, col, push_history=True):
-        """Modifies the grid and updates the view."""
+        """
+        Modifies the grid and updates the view.
+        """
         pat = self.current_pattern
         if pat['matrix'][row, col] == self.selected_color_idx:
             return
@@ -255,7 +301,7 @@ class StickApp(tk.Frame):
                 'cluster_centers': pat['cluster_centers'].copy()
             })
             if len(self.history) > 50: self.history.pop(0)
-            self.menu_refs['pattern_menu'].entryconfig('undo', state="normal")
+            self.menu_refs['pattern_menu'].entryconfig(3, state="normal")
 
         self.current_pattern = el.update_pattern_at_coord(pat, row, col, self.selected_color_idx)
         self.display_image(self.current_pattern['pil_image'])
@@ -265,16 +311,19 @@ class StickApp(tk.Frame):
             self.current_pattern = self.history.pop()
             self.display_image(self.current_pattern['pil_image'])
             if not self.history:
-                self.menu_refs['pattern_menu'].entryconfig('undo', state="disabled")
+                self.menu_refs['pattern_menu'].entryconfig(3, state="disabled")
 
     def open_palette(self):
-        """Creates a floating window for thread color selection."""
+        """
+        Creates a floating window for thread color selection.
+        """
         if self.palette_window: self.palette_window.destroy()
         
         self.palette_window = tk.Toplevel(self)
         self.palette_window.title(self.texts.get("color_sel", "Colors"))
         self.palette_window.geometry("200x400")
         self.palette_window.attributes("-topmost", True)
+        self.palette_window.protocol("WM_DELETE_WINDOW", self.stop_editing)
         
         # Color List with Scrollbar
         canvas = tk.Canvas(self.palette_window)
@@ -291,13 +340,23 @@ class StickApp(tk.Frame):
             self.edit_mode.set("paint")
             self.master.config(cursor="pencil")
 
-        tk.Button(frame, text="Eraser", bg="white", command=lambda: select(255)).pack(fill="x")
+        tk.Button(frame, 
+                  text=self.texts.get("eraser"), 
+                  bg="white", 
+                  command=lambda: select(255)).pack(fill="x")
         
         centers = self.current_pattern['cluster_centers']
+        seen_colors = set()
+        
         for i, color in enumerate(centers):
-            hex_c = '#%02x%02x%02x' % tuple(color)
-            fg = "white" if np.mean(color) < 128 else "black"
-            tk.Button(frame, text=f"ID {i}", bg=hex_c, fg=fg, command=lambda idx=i: select(idx)).pack(fill="x")
+            rgb_tuple = tuple(color.astype(int))
+            # Only add the button if this RGB value hasn't been displayed yet
+            if rgb_tuple not in seen_colors:
+                seen_colors.add(rgb_tuple)
+                rgb_hex = '#%02x%02x%02x' % rgb_tuple
+                text_col = "white" if np.mean(color) < 128 else "black"
+                tk.Button(frame, text=f"ID {i}", bg=rgb_hex, fg=text_col, 
+                          command=lambda idx=i: select(idx), height=2).pack(fill="x", pady=2)
 
         frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
@@ -308,24 +367,152 @@ class StickApp(tk.Frame):
         self.display_image(img)
 
     def clear_all(self):
+        self.stop_editing()
         self.canvas.delete("all")
         self.input_path = None
         self.current_pattern = None
         self.master.config(cursor="")
-        # Reset menu states...
+        self.zoom_level = 1.0
+        
+        m = self.menu_refs
+        
+        # Using indices based on create_menubar order:
+        # pattern_menu: 0=Generate, 1=No BG, 2=Edit, 3=Undo
+        m['pattern_menu'].entryconfig(0, state="disabled")
+        m['pattern_menu'].entryconfig(1, state="disabled")
+        m['pattern_menu'].entryconfig(2, state="disabled")
+        m['pattern_menu'].entryconfig(3, state="disabled")
+        
+        # file_menu: 1=Save Pattern
+        m['file_menu'].entryconfig(1, state="disabled")
+        
+        # view_menu: 0=Clear Display
+        m['view_menu'].entryconfig(0, state="disabled")
 
     def load_settings(self):
-        # Implementation of JSON loading...
-        pass
+        data = self.defaults.copy()
+        if path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f:
+                    loaded = json.load(f)
+                    data.update(loaded)
+            except Exception: pass
+        for key, val in data.items():
+            if key in self.settings:
+                self.settings[key].set(val)
 
     def save_pattern(self):
-        # PDF/JPEG export logic...
-        pass
+        t = self.texts
+        if not self.current_pattern: return
+        base_name = path.basename(path.splitext(self.input_path)[0])
+        
+        file_prefix = t.get("pattern_file_prefix", "Pattern")
+        pattern_label = t.get("embroidery_pattern", "Pattern")
+        legend_label = t.get("color_legend", "Color Legend")
+       
+        output_path = fd.asksaveasfilename(
+            initialfile=f"{file_prefix}_{base_name}",
+            defaultextension=".pdf",
+            filetypes=[(t.get("pdf_doc"), "*.pdf"), (t.get("jpeg_img"), "*.jpg")]
+        )
+        if output_path:
+            if output_path.lower().endswith('.pdf'):
+                choice = self.settings["paper_size"].get()
+                if choice == t.get("paper_a4_p"): p_size = el.A4
+                elif choice == t.get("paper_a4_l"): p_size = el.landscape(el.A4)
+                elif choice == t.get("paper_a3_p"): p_size = el.A3
+                elif choice == t.get("paper_a3_l"): p_size = el.landscape(el.A3)
+                else: p_size = el.A4
+                
+                el.save_as_pdf(output_path, 
+                               self.current_pattern, 
+                               f"{pattern_label}: {base_name}", 
+                               legend_text=legend_label,
+                               pagesize=p_size)
+            else:
+                el.save_as_jpeg(output_path, self.current_pattern)
+            mb.showinfo(t.get("msg_success_title"), t.get("msg_save_success"))
 
     def open_settings(self):
-        # Settings window logic...
-        pass
+        t = self.texts
+        settings_win = tk.Toplevel(self)
+        settings_win.title(t.get("params"))
+        settings_win.geometry("400x600")
+        settings_win.grab_set()
+        container = ttk.Frame(settings_win, padding=20)
+        container.pack(fill="both", expand=True)
+
+        def add_row(label_key, var, widget_type="entry", values=None):
+            ttk.Label(container, text=t.get(label_key)).pack(anchor="w")
+            if widget_type == "entry":
+                # Ensure float values use '.' by forcing string conversion if needed
+                ent = ttk.Entry(container, textvariable=var)
+                ent.pack(fill="x", pady=(0, 10))
+            elif widget_type == "combo":
+                ttk.Combobox(container, textvariable=var, values=values, state="readonly").pack(fill="x", pady=(0, 10))
+
+        add_row("crosses_x", self.settings["crosses_x"])
+        add_row("colors", self.settings["kmeans_n_clusters"])
+        add_row("ai_model", self.settings["model_version"], "combo", ["Version 1", "Version 2"])
+        add_row("threshold", self.settings["score_threshold"])
+        add_row("objects", self.settings["num_objects"])
+        
+        # Localized Paper Sizes
+        paper_options = [t.get("paper_a4_p"), t.get("paper_a4_l"), t.get("paper_a3_p"), t.get("paper_a3_l")]
+        curr_p = self.settings["paper_size"].get()
+        if curr_p not in paper_options:
+             # Fallback: if we just switched languages, reset to A4 Portrait in new language
+             self.settings["paper_size"].set(t.get("paper_a4_p"))
+             
+        add_row("paper", self.settings["paper_size"], "combo", paper_options)
+        
+        ttk.Label(container, text=t.get("language"), font=("Helvetica", 10, "bold")).pack(anchor="w", pady=(10, 0))
+        lang_map = {"Deutsch": "de", "English": "en", "Français": "fr", "Nederlands": "nl"}
+        inv_lang_map = {v: k for k, v in lang_map.items()}
+        
+        lang_var = tk.StringVar(value=inv_lang_map.get(self.lang_code.get(), "English"))
+        lang_cb = ttk.Combobox(container, textvariable=lang_var, values=list(lang_map.keys()), state="readonly")
+        lang_cb.pack(fill="x", pady=(0, 20))       
+        
+        def save_and_close():
+            self.lang_code.set(lang_map[lang_var.get()])
+            self.save_settings_to_file()
+            settings_win.destroy()
+
+        btn_frame = ttk.Frame(container)
+        btn_frame.pack(fill="x", pady=10)
+        ttk.Button(btn_frame, text=t.get("save"), command=save_and_close).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text=t.get("reset"), command=self.reset_to_defaults).pack(side="left", padx=5)
 
     def bind_shortcuts(self):
         self.master.bind("<Control-z>", self.undo)
-
+        
+    def reset_to_defaults(self):
+        t = self.texts
+        if mb.askyesno(t.get("msg_reset_title"), t.get("msg_reset_text")):
+            for key, val in self.defaults.items():
+                if key == "paper_size":
+                    self.settings[key].set(t.get("paper_a4_p"))
+                else:
+                    self.settings[key].set(val)
+            self.save_settings_to_file()
+            
+    def save_settings_to_file(self):
+        data = {k: v.get() for k, v in self.settings.items()}
+        makedirs(path.dirname(CONFIG_FILE), exist_ok=True)
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(data, f)
+        
+        # Reload translations and refresh UI immediately
+        self.load_translations()
+        self.refresh_ui_text()
+        
+    def stop_editing(self):
+        """
+        Terminates paint mode and closes palette window.
+        """
+        self.edit_mode.set("none")
+        self.master.config(cursor="")
+        if self.palette_window and self.palette_window.winfo_exists():
+            self.palette_window.destroy()
+        self.palette_window = None

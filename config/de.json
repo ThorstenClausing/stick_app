@@ -41,5 +41,6 @@
     "msg_save_success": "Datei erfolgreich gespeichert.",
     "embroidery_pattern": "Stickmuster",
     "pattern_file_prefix": "Stickmuster",
-    "color_legend": "Verwendete Farben:"
+    "color_legend": "Verwendete Farben:",
+    "eraser": "Radiergummi"
 }
