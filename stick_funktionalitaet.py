@@ -15,7 +15,7 @@ from torchvision.models.detection import (
     MaskRCNN_ResNet50_FPN_Weights, maskrcnn_resnet50_fpn,
     MaskRCNN_ResNet50_FPN_V2_Weights, maskrcnn_resnet50_fpn_v2)
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4, A3
+from reportlab.lib.pagesizes import A4, A3, landscape
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
@@ -107,16 +107,16 @@ def generate_embroidery_pattern(image, kmeans_n_clusters=20, crosses_x=150):
 
     return {"pil_image": PIL.Image.fromarray(out), "cluster_centers": cluster_centers, "matrix": matrix}
 
-def save_as_pdf(file_path, pattern_data, title_text, pagesize=A4):
+def save_as_pdf(file_path, pattern_data, title_text, legend_text="Color Legend", pagesize=A4):
     """
-    Saves PDF with dynamic pagesize (A4 or A3).
+    Saves PDF with dynamic pagesize and orientation.
     """
     pil_image = pattern_data['pil_image']
     cluster_centers = pattern_data['cluster_centers']
     matrix = pattern_data['matrix']
 
     c = canvas.Canvas(file_path, pagesize=pagesize)
-    width, height = pagesize
+    width, height = pagesize 
 
     c.setFont("Helvetica-Bold", 20)
     c.drawCentredString(width / 2, height - 2 * cm, title_text)
@@ -132,11 +132,8 @@ def save_as_pdf(file_path, pattern_data, title_text, pagesize=A4):
 
     y_pos = height - 4 * cm - draw_h
     c.setFont("Helvetica", 12)
-    c.drawString(2 * cm, y_pos, "Verwendete Farben (Color Legend):")
+    c.drawString(2 * cm, y_pos, legend_text)
     y_pos -= 1 * cm
-
-    # Note: In save_as_pdf, add a check to skip '255' indices 
-    # so deleted crosses don't appear in the legend.
 
     unique_indices = np.unique(matrix)
     for idx in unique_indices:
@@ -151,20 +148,20 @@ def save_as_pdf(file_path, pattern_data, title_text, pagesize=A4):
             if y_pos < 2 * cm:
                 c.showPage()
                 y_pos = height - 2 * cm
+                c.setFont("Helvetica", 12) 
     c.save()
 
 def save_as_jpeg(file_path, pattern_data):
     pattern_data['pil_image'].save(file_path, format='JPEG')
 
-def update_pattern_at_coord(pattern_data, row, col, color_rgb):
+def update_pattern_at_coord(pattern_data, row, col, color_idx):
     """
-    Updates a single cell in the pattern data and redraws the cross in the PIL image.
+    Updates a single cell in the pattern data using a color index.
+    color_idx: The index in cluster_centers, or 255 for white/erase.
     """
-    # We work on copies to avoid side effects if needed, 
-    # but the history management will handle snapshots.
     matrix = pattern_data['matrix']
     pil_image = pattern_data['pil_image']
-    #cluster_centers = pattern_data['cluster_centers']
+    cluster_centers = pattern_data['cluster_centers']
     
     img_np = np.array(pil_image)
     h, w, _ = img_np.shape
@@ -175,19 +172,20 @@ def update_pattern_at_coord(pattern_data, row, col, color_rgb):
     y0, x0 = row * step, col * step
     y1, x1 = (row + 1) * step, (col + 1) * step
     
-    # Clear cell to white
+    # Determine the RGB color based on index
+    if color_idx == 255:
+        color_rgb = [255, 255, 255]
+    else:
+        color_rgb = cluster_centers[color_idx].astype(np.uint8).tolist()
+    
+    # Update Matrix
+    matrix[row, col] = color_idx
+    
+    # Redraw cell: Clear to white first
     img_np[y0:y1, x0:x1] = [255, 255, 255]
     
-    # Update Matrix: If erasing (white), we set a flag value (e.g., -1) 
-    # or identify the closest cluster. For deletion, we'll use a special value 
-    # and handle it in the PDF generator if necessary.
-    # Simple approach: set matrix to a value that represents "empty" 
-    # or just keep it. To make PDF work, let's mark it:
-    if all(c == 255 for c in color_rgb):
-        matrix[row, col] = 255 # Using 255 as a 'empty' flag for the matrix
-    
     # Draw cross if color is not white
-    if not all(c == 255 for c in color_rgb):
+    if color_idx != 255:
         for r in range(step):
             for b_off in range(-breadth // 2, breadth - breadth // 2):
                 if 0 <= r + b_off < step: 

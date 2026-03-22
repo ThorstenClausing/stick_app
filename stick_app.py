@@ -11,17 +11,10 @@ import tkinter as tk
 from app_funktionalitaet import StickApp
 
 def main():
-    """
-    Launches the main GUI application.
-
-    This function creates the Tkinter root window, initializes the StickApp 
-    GUI, sets the window size and position, and starts the main event loop.
-    """
     root = tk.Tk()
     root.title("Stick-App")
-    
-    # Position window in center
-    window_width, window_height = 1100, 800
+
+    window_width, window_height = 1100, 850 
     screen_w = root.winfo_screenwidth()
     screen_h = root.winfo_screenheight()
     x = (screen_w - window_width) // 2
