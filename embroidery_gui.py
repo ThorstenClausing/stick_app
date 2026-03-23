@@ -100,10 +100,13 @@ class StickApp(tk.Frame):
         self.menubar.add_cascade(menu=file_m) # Label set in refresh_ui_text
         self.menu_refs['file_cascade'] = self.menubar.index("end")
         
-        self.menu_refs['load'] = file_m.add_command(command=self.load_image)
-        self.menu_refs['save'] = file_m.add_command(command=self.save_pattern, state="disabled")
+        file_m.add_command(command=self.load_image)
+        self.menu_refs['load'] = file_m.index("end")
+        file_m.add_command(command=self.save_pattern, state="disabled")
+        self.menu_refs['save'] = file_m.index("end")
         file_m.add_separator()
-        self.menu_refs['exit'] = file_m.add_command(command=self.master.destroy)
+        file_m.add_command(command=self.master.destroy)
+        self.menu_refs['exit'] = file_m.index("end")
         self.menu_refs['file_menu'] = file_m
 
         # Pattern Menu
@@ -147,9 +150,9 @@ class StickApp(tk.Frame):
         
         # Update Menu Labels
         self.menubar.entryconfig(m['file_cascade'], label=t.get("file", "File"))
-        m['file_menu'].entryconfig(0, label=t.get("load_image", "Load..."))
-        m['file_menu'].entryconfig(1, label=t.get("save_pattern", "Save..."))
-        m['file_menu'].entryconfig(3, label=t.get("exit", "Exit"))
+        m['file_menu'].entryconfig(m['load'], label=t.get("load_image", "Load..."))
+        m['file_menu'].entryconfig(m['save'], label=t.get("save_pattern", "Save..."))
+        m['file_menu'].entryconfig(m['exit'], label=t.get("exit", "Exit"))
 
         self.menubar.entryconfig(m['pattern_cascade'], label=t.get("pattern", "Pattern"))
         m['pattern_menu'].entryconfig(0, label=t.get("gen_pattern", "Generate"))
