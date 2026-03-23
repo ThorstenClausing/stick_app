@@ -114,10 +114,14 @@ class StickApp(tk.Frame):
         self.menubar.add_cascade(menu=pat_m)
         self.menu_refs['pattern_cascade'] = self.menubar.index("end")
         
-        self.menu_refs['gen'] = pat_m.add_command(command=lambda: self.process(False), state="disabled")
-        self.menu_refs['gen_nobg'] = pat_m.add_command(command=lambda: self.process(True), state="disabled")
-        self.menu_refs['edit'] = pat_m.add_command(command=self.open_palette, state="disabled")
-        self.menu_refs['undo'] = pat_m.add_command(command=self.undo, state="disabled", accelerator="Ctrl+Z")
+        pat_m.add_command(command=lambda: self.process(False), state="disabled")
+        self.menu_refs['gen'] = pat_m.index("end")
+        pat_m.add_command(command=lambda: self.process(True), state="disabled")
+        self.menu_refs['gen_nobg'] = pat_m.index("end")
+        pat_m.add_command(command=self.open_palette, state="disabled")
+        self.menu_refs['edit'] = pat_m.index("end")
+        pat_m.add_command(command=self.undo, state="disabled", accelerator="Ctrl+Z")
+        self.menu_refs['undo'] = pat_m.index("end")
         self.menu_refs['pattern_menu'] = pat_m
 
         # View Menu
@@ -125,12 +129,17 @@ class StickApp(tk.Frame):
         self.menubar.add_cascade(menu=view_m)
         self.menu_refs['view_cascade'] = self.menubar.index("end")
         
-        self.menu_refs['clear'] = view_m.add_command(command=self.clear_all, state="disabled")
+        view_m.add_command(command=self.clear_all, state="disabled")
+        self.menu_refs['clear'] = view_m.index("end")
         zoom_m = tk.Menu(view_m, tearoff=0)
-        view_m.add_cascade(menu=zoom_m)
+        view_m.add_cascade(menu=zoom_m, state='disabled')
+        self.menu_refs['zoom'] = view_m.index("end")
         zoom_m.add_command(command=lambda: self.change_zoom(0.2))
+        self.menu_refs['zoom_in'] = zoom_m.index("end")
         zoom_m.add_command(command=lambda: self.change_zoom(-0.2))
+        self.menu_refs['zoom_out'] = zoom_m.index("end")
         zoom_m.add_command(command=lambda: self.change_zoom(0, True))
+        self.menu_refs['zoom_std'] = zoom_m.index("end")
         self.menu_refs['view_menu'] = view_m
         self.menu_refs['zoom_menu'] = zoom_m
 
@@ -139,6 +148,7 @@ class StickApp(tk.Frame):
         self.menubar.add_cascade(menu=set_m)
         self.menu_refs['settings_cascade'] = self.menubar.index("end")
         set_m.add_command(command=self.open_settings)
+        self.menu_refs['params'] = set_m.index("end")
         self.menu_refs['settings_menu'] = set_m
 
     def refresh_ui_text(self):
@@ -155,20 +165,20 @@ class StickApp(tk.Frame):
         m['file_menu'].entryconfig(m['exit'], label=t.get("exit", "Exit"))
 
         self.menubar.entryconfig(m['pattern_cascade'], label=t.get("pattern", "Pattern"))
-        m['pattern_menu'].entryconfig(0, label=t.get("gen_pattern", "Generate"))
-        m['pattern_menu'].entryconfig(1, label=t.get("gen_no_bg", "Gen (No Background)"))
-        m['pattern_menu'].entryconfig(2, label=t.get("edit_pattern", "Edit"))
-        m['pattern_menu'].entryconfig(3, label=t.get("undo", "Undo"))
+        m['pattern_menu'].entryconfig(m['gen'], label=t.get("gen_pattern", "Generate"))
+        m['pattern_menu'].entryconfig(m['gen_nobg'], label=t.get("gen_no_bg", "Gen (No Background)"))
+        m['pattern_menu'].entryconfig(m['edit'], label=t.get("edit_pattern", "Edit"))
+        m['pattern_menu'].entryconfig(m['undo'], label=t.get("undo", "Undo"))
 
         self.menubar.entryconfig(m['view_cascade'], label=t.get("view", "View"))
-        m['view_menu'].entryconfig(0, label=t.get("clear", "Clear"))
-        m['view_menu'].entryconfig(2, label=t.get("zoom", "Zoom"))
-        m['zoom_menu'].entryconfig(0, label=t.get("zoom_in"))
-        m['zoom_menu'].entryconfig(1, label=t.get("zoom_out"))
-        m['zoom_menu'].entryconfig(2, label=t.get("zoom_std"))
+        m['view_menu'].entryconfig(m['clear'], label=t.get("clear", "Clear"))
+        m['view_menu'].entryconfig(m['zoom'], label=t.get("zoom", "Zoom"))
+        m['zoom_menu'].entryconfig(m['zoom_in'], label=t.get("zoom_in"))
+        m['zoom_menu'].entryconfig(m['zoom_out'], label=t.get("zoom_out"))
+        m['zoom_menu'].entryconfig(m['zoom_std'], label=t.get("zoom_std"))
 
         self.menubar.entryconfig(m['settings_cascade'], label=t.get("settings", "Settings"))
-        m['settings_menu'].entryconfig(0, label=t.get("params", "Parameters..."))
+        m['settings_menu'].entryconfig(m['params'], label=t.get("params", "Parameters..."))
         
         # Update Palette window if open
         if self.palette_window and self.palette_window.winfo_exists():
@@ -199,6 +209,7 @@ class StickApp(tk.Frame):
         Handles image file selection.
         """
         self.stop_editing()
+        m = self.menu_refs
         fpath = fd.askopenfilename(filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp")])
         if fpath:
             self.input_path = fpath
@@ -208,9 +219,10 @@ class StickApp(tk.Frame):
             self.display_image(Image.open(fpath))
             
             # Update menu states
-            self.menu_refs['pattern_menu'].entryconfig(0, state="normal")
-            self.menu_refs['pattern_menu'].entryconfig(1, state="normal")
-            self.menu_refs['view_menu'].entryconfig(0, state="normal")
+            m['pattern_menu'].entryconfig(m['gen'], state="normal")
+            m['pattern_menu'].entryconfig(m['gen_nobg'], state="normal")
+            m['view_menu'].entryconfig(m['clear'], state="normal")
+            m['view_menu'].entryconfig(m['zoom'], state='normal')
 
     def display_image(self, pil_img):
         """
@@ -239,6 +251,7 @@ class StickApp(tk.Frame):
         """
         if not self.input_path: return
         self.stop_editing()
+        m = self.menu_refs
         self.master.config(cursor="watch")
         self.master.update()
         
@@ -261,8 +274,8 @@ class StickApp(tk.Frame):
                 self.settings['crosses_x'].get()
             )
             self.display_image(self.current_pattern['pil_image'])
-            self.menu_refs['pattern_menu'].entryconfig(2, state="normal")
-            self.menu_refs['file_menu'].entryconfig(1, state="normal")
+            m['pattern_menu'].entryconfig(m['edit'], state="normal")
+            m['file_menu'].entryconfig(m['save'], state="normal")
             
         except Exception as e:
             mb.showerror("Error", str(e))
@@ -304,7 +317,8 @@ class StickApp(tk.Frame):
                 'cluster_centers': pat['cluster_centers'].copy()
             })
             if len(self.history) > 50: self.history.pop(0)
-            self.menu_refs['pattern_menu'].entryconfig(3, state="normal")
+            m = self.menu_refs
+            m['pattern_menu'].entryconfig(m['undo'], state="normal")
 
         self.current_pattern = el.update_pattern_at_coord(pat, row, col, self.selected_color_idx)
         self.display_image(self.current_pattern['pil_image'])
@@ -314,7 +328,8 @@ class StickApp(tk.Frame):
             self.current_pattern = self.history.pop()
             self.display_image(self.current_pattern['pil_image'])
             if not self.history:
-                self.menu_refs['pattern_menu'].entryconfig(3, state="disabled")
+                m = self.menu_refs
+                m['pattern_menu'].entryconfig(m['undo'], state="disabled")
 
     def open_palette(self):
         """
@@ -379,18 +394,15 @@ class StickApp(tk.Frame):
         
         m = self.menu_refs
         
-        # Using indices based on create_menubar order:
-        # pattern_menu: 0=Generate, 1=No BG, 2=Edit, 3=Undo
-        m['pattern_menu'].entryconfig(0, state="disabled")
-        m['pattern_menu'].entryconfig(1, state="disabled")
-        m['pattern_menu'].entryconfig(2, state="disabled")
-        m['pattern_menu'].entryconfig(3, state="disabled")
+        m['pattern_menu'].entryconfig(m['gen'], state="disabled")
+        m['pattern_menu'].entryconfig(m['gen_nobg'], state="disabled")
+        m['pattern_menu'].entryconfig(m['edit'], state="disabled")
+        m['pattern_menu'].entryconfig(m['undo'], state="disabled")
         
-        # file_menu: 1=Save Pattern
-        m['file_menu'].entryconfig(1, state="disabled")
-        
-        # view_menu: 0=Clear Display
-        m['view_menu'].entryconfig(0, state="disabled")
+        m['file_menu'].entryconfig(m['save'], state="disabled")
+       
+        m['view_menu'].entryconfig(m['clear'], state="disabled")
+        m['view_menu'].entryconfig(m['zoom'], state='disabled')
 
     def load_settings(self):
         data = self.defaults.copy()
