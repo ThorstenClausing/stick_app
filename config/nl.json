@@ -42,5 +42,15 @@
     "embroidery_pattern": "Borduurpatroon",
     "pattern_file_prefix": "Borduurpatroon",
     "color_legend": "Kleurlegenda:",
-    "eraser": "Vlakgom"
+    "eraser": "Vlakgom",
+    "help": "Hulp",
+    "help_gen": "Patroongeneratie",
+    "help_bg": "Achtergrondverwijdering",
+    "help_edit": "Patroonbewerking",
+    "help_gen_title": "Hulp bij patroongeneratie",
+    "help_bg_title": "Hulp bij achtergrondverwijdering",
+    "help_edit_title": "Hulp bij patroonbewerking",
+    "help_gen_text": "Patroongeneratie ...",
+    "help_bg_text": "Achtergrondverwijdering ...",
+    "help_edit_text": "Patroonbewerking ..."
 }

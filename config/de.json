@@ -42,5 +42,15 @@
     "embroidery_pattern": "Stickmuster",
     "pattern_file_prefix": "Stickmuster",
     "color_legend": "Verwendete Farben:",
-    "eraser": "Radiergummi"
+    "eraser": "Radiergummi",
+    "help": "Hilfe",
+    "help_gen": "Mustergenerierung",
+    "help_bg": "Hintergrundentfernung",
+    "help_edit": "Musterbearbeitung",
+    "help_gen_title": "Hilfe zu Mustergenerierung",
+    "help_bg_title": "Hilfe zu Hintergrundentfernung",
+    "help_edit_title": "Hilfe zu Musterbearbeitung",
+    "help_gen_text": "Pattern generation ...",
+    "help_bg_text": "Background removal ...",
+    "help_edit_text": "Pattern editing ..."
 }

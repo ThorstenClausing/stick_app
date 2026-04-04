@@ -42,5 +42,15 @@
     "embroidery_pattern": "Modèle de broderie",
     "pattern_file_prefix": "Modele_de_broderie",
     "color_legend": "Légende des couleurs:",
-    "eraser": "Gomme"
+    "eraser": "Gomme",
+    "help": "Aide",
+    "help_gen": "Génération du motif",
+    "help_bg": "Suppression de l'arrière-plan",
+    "help_edit": "Modification du motif",
+    "help_gen_title": "Aide sur la génération du motif",
+    "help_bg_title": "Aide sur la suppression de l'arrière-plan",
+    "help_edit_title": "Aide sur la modification du motif",
+    "help_gen_text": "Génération de motifs ...",
+    "help_bg_text": "Suppression de l'arrière-plan ...",
+    "help_edit_text": "Édition de motifs ..."
 }

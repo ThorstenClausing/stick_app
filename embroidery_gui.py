@@ -147,9 +147,23 @@ class StickApp(tk.Frame):
         set_m = tk.Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(menu=set_m)
         self.menu_refs['settings_cascade'] = self.menubar.index("end")
+        
         set_m.add_command(command=self.open_settings)
         self.menu_refs['params'] = set_m.index("end")
         self.menu_refs['settings_menu'] = set_m
+        
+        # Help menu
+        help_m = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(menu=help_m)
+        self.menu_refs['help_cascade'] = self.menubar.index("end")
+        
+        help_m.add_command(command=self.show_help_generation)
+        self.menu_refs['help_gen'] = help_m.index("end")
+        help_m.add_command(command=self.show_help_bg)
+        self.menu_refs['help_bg'] = help_m.index("end")
+        help_m.add_command(command=self.show_help_edit)
+        self.menu_refs['help_edit'] = help_m.index("end")
+        self.menu_refs['help_menu'] = help_m
 
     def refresh_ui_text(self):
         """
@@ -179,6 +193,11 @@ class StickApp(tk.Frame):
 
         self.menubar.entryconfig(m['settings_cascade'], label=t.get("settings", "Settings"))
         m['settings_menu'].entryconfig(m['params'], label=t.get("params", "Parameters..."))
+        
+        self.menubar.entryconfig(m['help_cascade'], label=t.get("help", "Help"))
+        m['help_menu'].entryconfig(m['help_gen'], label=t.get('help_gen', "Pattern generation"))
+        m['help_menu'].entryconfig(m['help_bg'], label=t.get('help_bg', "Background removal"))
+        m['help_menu'].entryconfig(m['help_edit'], label=t.get('help_edit', "Pattern editing"))
         
         # Update Palette window if open
         if self.palette_window and self.palette_window.winfo_exists():
@@ -531,3 +550,25 @@ class StickApp(tk.Frame):
         if self.palette_window and self.palette_window.winfo_exists():
             self.palette_window.destroy()
         self.palette_window = None
+        
+    
+    def show_help_generation(self):
+        t = self.texts
+        self.show_help(t.get("help_gen_title"), t.get("help_gen_text"))
+        
+    def show_help_bg(self):
+        t = self.texts
+        self.show_help(t.get("help_bg_title"), t.get("help_bg_text"))
+        
+    def show_help_edit(self):
+        t = self.texts
+        self.show_help(t.get("help_edit_title"), t.get("help_edit_text"))
+        
+    def show_help(self, title, text):
+        """
+        Shows a help window
+        """
+        help_window = tk.Toplevel()
+        help_window.title(title)
+        help_window.geometry("400x200")
+        tk.Label(help_window, text=text).pack(pady=20)

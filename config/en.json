@@ -42,5 +42,15 @@
     "embroidery_pattern": "Embroidery Pattern",
     "pattern_file_prefix": "Pattern",
     "color_legend": "Color Legend:",
-    "eraser": "Eraser"
+    "eraser": "Eraser",
+    "help": "Help",
+    "help_gen": "Pattern generation",
+    "help_bg": "Background removal",
+    "help_edit": "Pattern editing",
+    "help_gen_title": "Help on pattern generation",
+    "help_bg_title": "Help on background removal",
+    "help_edit_title": "Help on pattern editing",
+    "help_gen_text": "Pattern generation ...",
+    "help_bg_text": "Background removal ...",
+    "help_edit_text": "Pattern editing ..."
 }
