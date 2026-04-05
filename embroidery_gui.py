@@ -570,5 +570,9 @@ class StickApp(tk.Frame):
         """
         help_window = tk.Toplevel()
         help_window.title(title)
-        help_window.geometry("400x200")
-        tk.Label(help_window, text=text).pack(pady=20)
+        #help_window.geometry("400x200")
+        display = tk.Text(help_window, width = 100, height=16, wrap='word', font='TkDefaultFont')
+        display.pack(pady=20, padx=10, expand=True, fill=tk.BOTH)
+        display.insert(index='1.0', chars=text)
+        display['state'] = 'disabled'
+        

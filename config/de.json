@@ -24,7 +24,7 @@
     "paper": "PDF-Papierformat:",
     "language": "Sprache:",
     "save": "Einstellungen speichern",
-    "reset": "Zurücksetzen",
+    "reset": "Zurücksetzen auf Standardwerte",
     "color_sel": "Farbauswahl",
     "pdf_doc": "PDF Dokument",
     "jpeg_img": "JPEG Bild",
@@ -47,10 +47,10 @@
     "help_gen": "Mustergenerierung",
     "help_bg": "Hintergrundentfernung",
     "help_edit": "Musterbearbeitung",
-    "help_gen_title": "Hilfe zu Mustergenerierung",
-    "help_bg_title": "Hilfe zu Hintergrundentfernung",
-    "help_edit_title": "Hilfe zu Musterbearbeitung",
-    "help_gen_text": "Pattern generation ...",
+    "help_gen_title": "Hilfe zur Mustergenerierung",
+    "help_bg_title": "Hilfe zur Hintergrundentfernung",
+    "help_edit_title": "Hilfe zur Musterbearbeitung",
+    "help_gen_text": "Aus einer geöffneten Bilddatei wird durch Klicken auf den Menüeintrag \"Muster generieren\" ein Stickmuster erstellt. Dabei können über das Menü \"Einstellungen - Verarbeitungsparameter\" folgende Eigenschaften des Stickmusters angepasst werden:\n\n\"Anzahl Kreuze (Breite)\" legt fest, wie viele Kreuzstiche im Muster in horizontaler Richtung nebeneinander liegen, also wie breit das Muster ist. Die Höhe des Musters ergibt sich hieraus enstprechend dem Seitenverhältnis des Ausgangsbildes.\n\n\"Anzahl Farben (k-Means)\" legt fest, wie viele verschiedene Garnfarben das Muster hat. Falls das Ausgangsbild nur sehr wenige unterschiedliche Farbtöne aufweißt, kann die tatsächliche Anzahl an Farben geringer sein als der in den Einstellungen festgelegte Wert.\n\nEin erzeugtes Muster kann über den Menüeintrag \"Datei - Muster speichern...\" im jpeg-Format oder im pdf-Format gespeichert werden. Für pdf-Dateien kann unter \"Einstellungen - Verarbeitungsparameter\" die Seitengröße festgelegt werden.",
     "help_bg_text": "Background removal ...",
     "help_edit_text": "Pattern editing ..."
 }
